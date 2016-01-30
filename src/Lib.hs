@@ -15,6 +15,7 @@ data LispVal
     | DottedList [LispVal] LispVal
     | Number Integer
     | String String
+    | Char Char
     | Bool Bool
     deriving(Show)
 
@@ -76,6 +77,7 @@ parseNumber = parseNumberBase 'd'
                  base <- oneOf "bdoh"
                  parseNumberBase base
 
+
 -- | Parses a number at a specific base
 parseNumberBase :: Char -> Parser LispVal
 parseNumberBase 'b' =
@@ -83,19 +85,21 @@ parseNumberBase 'b' =
        return $ (Number . fromJust . readBinary) digits
 parseNumberBase 'o' =
     do digits <- many1 octDigit
-       return $ Number (fst (readHex digits !! 0))
+       return $ Number (fst (readOct digits !! 0))
 parseNumberBase 'd' =
     do digits <- many1 digit
        return $ (Number . read) digits
 parseNumberBase 'h' =
     do digits <- many1 hexDigit
-       return $ Number (fst (readOct digits !! 0))
+       return $ Number (fst (readHex digits !! 0))
 parseNumberBase _ =
     error "Wrong number base"
+
 
 readBinary :: String -> Maybe Integer
 readBinary =
     fmap fst . listToMaybe . readInt 2 (`elem` "01") digitToInt
+
 
 -- | Parses a symbol according to RSR5
 symbol :: Parser Char
