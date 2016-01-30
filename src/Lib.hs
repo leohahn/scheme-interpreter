@@ -4,8 +4,10 @@ module Lib
 
 import Text.ParserCombinators.Parsec hiding (spaces)
 import System.Environment
-import Control.Monad
-
+import Data.Char (digitToInt)
+import Numeric (readInt, readOct, readHex)
+import Data.Maybe (listToMaybe, fromJust)
+--import Control.Monad
 
 data LispVal
     = Atom String
@@ -26,16 +28,16 @@ entry = do args <- getArgs
 
 -- | Given a string, reads the expression and evaluates it
 readExpr :: String -> String
-readExpr input = case parse parseString "lisp" input of
+readExpr input = case parse parseExpr "lisp" input of
                    Left err -> "No match: " ++ show err
                    Right val -> "Found value: " ++ show val
 
 
 -- | Parses the whole expression, returning the evaluated value
 parseExpr :: Parser LispVal
-parseExpr = parseAtom
+parseExpr = parseNumber
         <|> parseString
-        <|> parseNumber
+        <|> parseAtom
 
 
 -- | Parses a string with escaped characters
@@ -53,7 +55,7 @@ parseString = do char '"'
                                       'n' -> '\n'
                                       'r' -> '\r'
                                       't' -> '\t'
-                                      --_ -> undefined
+                                      _ -> undefined
 
 
 -- | Parses an atom, returning the atom or a boolean
@@ -67,10 +69,33 @@ parseAtom = do first <- letter <|> symbol
                           _ -> Atom atom
 
 
--- | Parses numbers
+-- | Parses numbers in different bases (decimal, binary, octal and hexa)
 parseNumber :: Parser LispVal
-parseNumber = liftM (Number . read) $ many1 digit
+parseNumber = parseNumberBase 'd'
+          <|> do char '#'
+                 base <- oneOf "bdoh"
+                 parseNumberBase base
 
+-- | Parses a number at a specific base
+parseNumberBase :: Char -> Parser LispVal
+parseNumberBase 'b' =
+    do digits <- many1 (oneOf "01")
+       return $ (Number . fromJust . readBinary) digits
+parseNumberBase 'o' =
+    do digits <- many1 octDigit
+       return $ Number (fst (readHex digits !! 0))
+parseNumberBase 'd' =
+    do digits <- many1 digit
+       return $ (Number . read) digits
+parseNumberBase 'h' =
+    do digits <- many1 hexDigit
+       return $ Number (fst (readOct digits !! 0))
+parseNumberBase _ =
+    error "Wrong number base"
+
+readBinary :: String -> Maybe Integer
+readBinary =
+    fmap fst . listToMaybe . readInt 2 (`elem` "01") digitToInt
 
 -- | Parses a symbol according to RSR5
 symbol :: Parser Char
@@ -78,8 +103,8 @@ symbol = oneOf "!$%&|*+-/:<=?>@^_~#"
 
 
 -- | Removes all spaces until other character is found
-spaces :: Parser ()
-spaces = skipMany1 space
+-- spaces :: Parser ()
+-- spaces = skipMany1 space
 
 
 
