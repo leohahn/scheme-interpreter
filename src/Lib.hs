@@ -36,9 +36,14 @@ readExpr input = case parse parseExpr "lisp" input of
 
 -- | Parses the whole expression, returning the evaluated value
 parseExpr :: Parser LispVal
-parseExpr = parseNumber
-        <|> parseString
-        <|> parseAtom
+parseExpr = parseHash
+       <|>  parseString
+       <|>  parseAtom
+
+
+parseHash :: Parser LispVal
+parseHash = do char '#'
+               choice [parseNumber,parseBoolean,parseChar]
 
 
 -- | Parses a string with escaped characters
@@ -59,15 +64,27 @@ parseString = do char '"'
                                       _ -> undefined
 
 
+-- | Parses a boolean, given that '#' was already consumed
+parseBoolean :: Parser LispVal
+parseBoolean = do val <- oneOf "tf"
+                  case val of
+                    't' -> return $ Bool True
+                    'f' -> return $ Bool False
+                    _ -> undefined
+
 -- | Parses an atom, returning the atom or a boolean
 parseAtom :: Parser LispVal
 parseAtom = do first <- letter <|> symbol
                rest <- many (letter <|> digit <|> symbol)
                let atom = first : rest
-               return $ case atom of
-                          "#t" -> Bool True
-                          "#f" -> Bool False
-                          _ -> Atom atom
+               return $ Atom atom
+
+
+-- | Parses a character
+parseChar :: Parser LispVal
+parseChar = do char '\\'
+               c <- anyChar
+               return $ Char c
 
 
 -- | Parses numbers in different bases (decimal, binary, octal and hexa)
@@ -103,7 +120,7 @@ readBinary =
 
 -- | Parses a symbol according to RSR5
 symbol :: Parser Char
-symbol = oneOf "!$%&|*+-/:<=?>@^_~#"
+symbol = oneOf "!$%&*+-./:<=?>@^_~"
 
 
 -- | Removes all spaces until other character is found
