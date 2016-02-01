@@ -5,7 +5,7 @@ module Lib
 import Text.ParserCombinators.Parsec hiding (spaces)
 import System.Environment
 import Data.Char (digitToInt)
-import Numeric (readInt, readOct, readHex)
+import Numeric (readInt, readOct, readHex, readFloat)
 import Data.Maybe (listToMaybe, fromJust)
 --import Control.Monad
 
@@ -14,6 +14,7 @@ data LispVal
     | List [LispVal]
     | DottedList [LispVal] LispVal
     | Number Integer
+    | Float Float
     | String String
     | Char Char
     | Bool Bool
@@ -37,13 +38,16 @@ readExpr input = case parse parseExpr "lisp" input of
 -- | Parses the whole expression, returning the evaluated value
 parseExpr :: Parser LispVal
 parseExpr = parseHash
-       <|>  parseString
-       <|>  parseAtom
+        <|> parseNumberBase 'd'
+        <|> parseString
+        <|> parseAtom
 
 
 parseHash :: Parser LispVal
 parseHash = do char '#'
-               choice [parseNumber,parseBoolean,parseChar]
+               choice [ oneOf "bdho" >>= parseNumberBase
+                      , parseBoolean
+                      , parseChar]
 
 
 -- | Parses a string with escaped characters
@@ -87,14 +91,6 @@ parseChar = do char '\\'
                return $ Char c
 
 
--- | Parses numbers in different bases (decimal, binary, octal and hexa)
-parseNumber :: Parser LispVal
-parseNumber = parseNumberBase 'd'
-          <|> do char '#'
-                 base <- oneOf "bdoh"
-                 parseNumberBase base
-
-
 -- | Parses a number at a specific base
 parseNumberBase :: Char -> Parser LispVal
 parseNumberBase 'b' =
@@ -104,8 +100,17 @@ parseNumberBase 'o' =
     do digits <- many1 octDigit
        return $ Number (fst (readOct digits !! 0))
 parseNumberBase 'd' =
-    do digits <- many1 digit
-       return $ (Number . read) digits
+    do first <- digit
+       restDigits <-  many1 (digit <|> char '.')
+       let digits = first : restDigits
+       let numPoints = (length . filter (== '.')) digits
+       case numPoints of
+         0 -> return $ (Number . read) digits
+
+         1 -> do let float = fst $ (readFloat digits :: [(Float,String)]) !! 0
+                 return $ Float float
+
+         _ -> fail "More than one point in a float number"
 parseNumberBase 'h' =
     do digits <- many1 hexDigit
        return $ Number (fst (readHex digits !! 0))
