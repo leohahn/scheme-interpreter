@@ -1,10 +1,10 @@
 
 ==================== FINAL INTERFACE ====================
-2016-02-01 11:41:23.136208 UTC
+2016-02-05 17:50:40.253623 UTC
 
 interface schem_JKJnTqsSGsY8xQJBR5BvwX:Lib 7103
-  interface hash: df02fa2956c45f9804f262abe4600a87
-  ABI hash: ebc02be9541d5822dd0bf24d3d216559
+  interface hash: 6af1fce75018488bdf3454cc31f64e8d
+  ABI hash: 75ba6aac906648a21b06432648397a65
   export-list hash: 9c8bb576a0e08885efa2123d24e71e93
   orphan hash: 693e9af84d3dfcc71e640e005bdc5e2e
   flag hash: 962af636f8e927040c7daa9c21457292
@@ -42,6 +42,7 @@ family instance modules: base-4.8.2.0:Control.Applicative
                          containers-0.5.6.2@conta_2C3ZI8RgPO2LBMidXKTvIU:Data.Set.Base
                          text-1.2.2.0@text_5c7VCmRXJenGcMPs3kwpkI:Data.Text
                          text-1.2.2.0@text_5c7VCmRXJenGcMPs3kwpkI:Data.Text.Lazy
+import  -/  base-4.8.2.0:Control.Monad 480c5067477275068c9b98be08410df9
 import  -/  base-4.8.2.0:Data.Char c8f827952d4111ae2e47c0b105217cdb
 import  -/  base-4.8.2.0:Data.Either e8724afd65fd432cfe9a54014f5f762d
 import  -/  base-4.8.2.0:Data.Foldable 2ce969969ad5231eb40bd713f94f05ad
@@ -111,12 +112,12 @@ b3dfc5193807478eee96cdd2332d6caf
     | String GHC.Base.String
     | Char GHC.Types.Char
     | Bool GHC.Types.Bool
-ababb4df8871b8b6f29aa4c5b0e1ab10
+d741c028b164ef8cc85801ead061fefb
   entry :: GHC.Types.IO ()
   {- Arity: 1, Strictness: <L,U>,
      Unfolding: InlineRule (0, True, True)
                 Lib.entry1 `cast` (Sym (GHC.Types.NTCo:IO[0] <()>_R)) -}
-8c8412bd1c6b6394a4bdf2a6e2dee24d
+e5957d5252387086c5e26db5cf2dc9eb
   entry1 ::
     GHC.Prim.State# GHC.Prim.RealWorld
     -> (# GHC.Prim.State# GHC.Prim.RealWorld, () #)
@@ -159,7 +160,7 @@ ababb4df8871b8b6f29aa4c5b0e1ab10
 d52d3f84e4a7ab61d7c83ee681682464
   entry2 :: [GHC.Types.Char]
   {- Unfolding: (GHC.CString.unpackCString# "lisp"#) -}
-48e6ad1bb89600c7d50806af0f4928a1
+d38faed84131d1b6a757e826182616ad
   entry3 ::
     Text.Parsec.Prim.State GHC.Base.String ()
     -> (Lib.LispVal
@@ -175,7 +176,8 @@ d52d3f84e4a7ab61d7c83ee681682464
     -> (Text.Parsec.Error.ParseError
         -> Data.Functor.Identity.Identity b)
     -> Data.Functor.Identity.Identity b
-  {- Arity: 5 -}
+  {- Arity: 5,
+     Strictness: <L,U(U,U(U,U,U),U)><L,U><L,U><L,C(C1(C1(U)))><L,C(U)> -}
 instance GHC.Show.Show [Lib.LispVal] = Lib.$fShowLispVal
 vectorised variables:
 vectorised tycons:

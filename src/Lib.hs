@@ -1,13 +1,15 @@
 module Lib
-    (entry)
-    where
+    ( entry
+    ) where
 
-import Text.ParserCombinators.Parsec hiding (spaces)
-import System.Environment
-import Data.Char (digitToInt)
-import Numeric (readInt, readOct, readHex, readFloat)
-import Data.Maybe (listToMaybe, fromJust)
---import Control.Monad
+import           Control.Monad
+import           Data.Char                     (digitToInt)
+import           Data.Maybe                    (fromJust, listToMaybe)
+import           Numeric                       (readFloat, readHex, readInt,
+                                                readOct)
+import           System.Environment
+import           Text.ParserCombinators.Parsec hiding (spaces)
+
 
 data LispVal
     = Atom String
@@ -18,14 +20,15 @@ data LispVal
     | String String
     | Char Char
     | Bool Bool
-    deriving(Show)
+    deriving (Show)
 
 
 -- | Entry point of the application, gets arguments and evaluates it with
 -- the readExpr function
 entry :: IO ()
-entry = do args <- getArgs
-           putStrLn $ readExpr (head args)
+entry =
+    do args <- getArgs
+       putStrLn $ readExpr (head args)
 
 
 -- | Given a string, reads the expression and evaluates it
@@ -41,54 +44,109 @@ parseExpr = parseHash
         <|> parseNumberBase 'd'
         <|> parseString
         <|> parseAtom
+        <|> parseQuoted
+        <|> parseAnyList
 
 
+parseAnyList :: Parser LispVal
+parseAnyList =
+    do char '('
+       firstPart <- sepEndBy parseExpr spaces
+       spacesOpt
+       sep <- choice [char '.',char ')']
+       case sep of
+         '.' ->
+             do spaces
+                secondPart <- parseExpr
+                char ')'
+                return (DottedList firstPart secondPart)
+         ')' ->
+             return (List firstPart)
+         _   ->
+             undefined
+
+spacesOpt :: Parser ()
+spacesOpt = skipMany space
+
+-- | Parses a list with expressions separated by spaces
+parseList :: Parser LispVal
+parseList = liftM List $ sepBy parseExpr spaces
+
+
+-- | Parses a list in its dotted form
+parseDottedList :: Parser LispVal
+parseDottedList =
+    do x <- endBy parseExpr spaces
+       xs <- char '.' >> spaces >> parseExpr
+       return $ DottedList x xs
+
+
+-- | Parses a LispVal that is quoted
+parseQuoted :: Parser LispVal
+parseQuoted =
+    do char '\''
+       x <- parseExpr
+       return $ List [Atom "quote",x]
+
+
+-- Parses all LispVal's that begin with a hash character
 parseHash :: Parser LispVal
-parseHash = do char '#'
-               choice [ oneOf "bdho" >>= parseNumberBase
-                      , parseBoolean
-                      , parseChar]
+parseHash =
+    do char '#'
+       choice [ oneOf ['b','d','h','o'] >>= parseNumberBase
+              , parseBoolean
+              , parseChar
+              ]
 
 
 -- | Parses a string with escaped characters
 parseString :: Parser LispVal
-parseString = do char '"'
-                 x <- many innerChar
-                 char '"'
-                 return $ String x
-              where innerChar = noneOf ['\"', '\\'] <|> escapeChar
-                    escapeChar =
-                        do char '\\'
-                           c <- oneOf ['n','"','r','t']
-                           return $ case c of
-                                      '"' -> '\"'
-                                      'n' -> '\n'
-                                      'r' -> '\r'
-                                      't' -> '\t'
-                                      _ -> undefined
+parseString =
+    do char '"'
+       x <- many innerChar
+       char '"'
+       return $ String x
+    where
+      innerChar = noneOf ['\"', '\\'] <|> escapeChar
+      escapeChar =
+          do char '\\'
+             c <- oneOf ['n','"','r','t']
+             return $ case c of
+                        '"' -> '\"'
+                        'n' -> '\n'
+                        'r' -> '\r'
+                        't' -> '\t'
+                        _   -> undefined
 
 
 -- | Parses a boolean, given that '#' was already consumed
 parseBoolean :: Parser LispVal
-parseBoolean = do val <- oneOf "tf"
-                  case val of
-                    't' -> return $ Bool True
-                    'f' -> return $ Bool False
-                    _ -> undefined
+parseBoolean =
+    do val <- oneOf ['t','f']
+       case val of
+         't' -> return $ Bool True
+         'f' -> return $ Bool False
+         _   -> undefined
 
--- | Parses an atom, returning the atom or a boolean
+
 parseAtom :: Parser LispVal
-parseAtom = do first <- letter <|> symbol
-               rest <- many (letter <|> digit <|> symbol)
-               let atom = first : rest
-               return $ Atom atom
+parseAtom =
+    do first <- choice [initial,peculiarIdentifier]
+       second <- many subsequent
+       case (length second,first) of
+         (0, '+') -> return $ Atom (first : "")
+         (0, '-') -> return $ Atom (first : "")
+         (_, '+') -> error "Identifier begins with +"
+         (_, '-') -> error "Identifier begins with -"
+         _        -> return $ Atom (first : second)
 
 
 -- | Parses a character
 parseChar :: Parser LispVal
-parseChar = do char '\\'
-               c <- anyChar
-               return $ Char c
+parseChar =
+    do char '\\'
+       c <- anyChar
+       return $ Char c
 
 
 -- | Parses a number at a specific base
@@ -101,7 +159,7 @@ parseNumberBase 'o' =
        return $ Number (fst (readOct digits !! 0))
 parseNumberBase 'd' =
     do first <- digit
-       restDigits <-  many1 (digit <|> char '.')
+       restDigits <-  many (digit <|> char '.')
        let digits = first : restDigits
        let numPoints = (length . filter (== '.')) digits
        case numPoints of
@@ -128,9 +186,27 @@ symbol :: Parser Char
 symbol = oneOf "!$%&*+-./:<=?>@^_~"
 
 
+initial :: Parser Char
+initial = letter <|> specialInitial
+
+
+specialInitial :: Parser Char
+specialInitial =
+    oneOf ['!','$','%','&','*','/',':','<','=','>','?','^','_','~']
+
+
+subsequent :: Parser Char
+subsequent = initial <|> digit <|> specialSubsequent
+
+
+specialSubsequent :: Parser Char
+specialSubsequent = oneOf ['+','-','.','@']
+
+
+peculiarIdentifier :: Parser Char
+peculiarIdentifier = oneOf ['+','-']
+
+
 -- | Removes all spaces until other character is found
--- spaces :: Parser ()
--- spaces = skipMany1 space
-
-
-
+spaces :: Parser ()
+spaces = skipMany1 space
